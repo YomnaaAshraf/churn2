@@ -40,22 +40,22 @@ def load_models_and_tools():
     le_PaymentMethod_path = os.path.join(script_dir, "tools", "le_PaymentMethod.pkl")
     le_InternetService_path = os.path.join(script_dir, "tools", "le_InternetService.pkl")
     # Traditional ML Models
-    lr_model = joblib.load("lr_path")
-    svc_model = joblib.load("svc_path")
-    xgb_model = joblib.load("xgb_path")
+    lr_model = joblib.load("C:\Users\ducci\Downloads\notebook-20250611T175856Z-1-001\notebook\models\logistic_regression_model.pkl")
+    svc_model = joblib.load("C:\Users\ducci\Downloads\notebook-20250611T175856Z-1-001\notebook\models\svc_model.pkl")
+    xgb_model = joblib.load("C:\Users\ducci\Downloads\notebook-20250611T175856Z-1-001\notebook\models\best_xgb_model.pkl")
 
     # LLM Model
     llm_tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-    llm_model = AutoModelForSequenceClassification.from_pretrained("./models/distilbert_model0", num_labels=2)
+    llm_model = AutoModelForSequenceClassification.from_pretrained("C:\Users\ducci\Downloads\notebook-20250611T175856Z-1-001\notebook\models\distilbert_model0-20250611T190457Z-1-001\distilbert_model0", num_labels=2)
     
     # Scalers
-    scaler_first = joblib.load(scaler_path)
+    scaler_first = joblib.load(C:\Users\ducci\Downloads\notebook-20250611T175856Z-1-001\notebook\tools\scaler_first.pkl)
     
     # Label Encoders
-    le_gender = joblib.load(le_gender_path)
-    le_Contract = joblib.load(le_Contract_path)
-    le_PaymentMethod = joblib.load(le_PaymentMethod_path)
-    le_InternetService = joblib.load(le_InternetService_path)
+    le_gender = joblib.load(C:\Users\ducci\Downloads\notebook-20250611T175856Z-1-001\notebook\tools\le_gender.pkl)
+    le_Contract = joblib.load(C:\Users\ducci\Downloads\notebook-20250611T175856Z-1-001\notebook\tools\le_Contract.pkl)
+    le_PaymentMethod = joblib.load(C:\Users\ducci\Downloads\notebook-20250611T175856Z-1-001\notebook\tools\le_PaymentMethod.pkl)
+    le_InternetService = joblib.load(C:\Users\ducci\Downloads\notebook-20250611T175856Z-1-001\notebook\tools\le_InternetService.pkl)
     
     return {
         "Logistic Regression": lr_model,
