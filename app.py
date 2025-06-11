@@ -23,7 +23,7 @@ st.set_page_config(
 )
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
+script_dir = os.path.dirname(os.path.abspath("C:\Users\ducci\Downloads\notebook-20250611T175856Z-1-001\notebook\app.py"))
 
 @st.cache_resource
 def load_models_and_tools():
