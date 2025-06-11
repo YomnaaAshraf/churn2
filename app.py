@@ -25,7 +25,8 @@ st.set_option('deprecation.showPyplotGlobalUse', False)
 @st.cache_resource
 def load_assets():
     """Load all machine learning models and associated tools."""
-    base_path = os.path.dirname(__file__)
+    # Build relative paths from the script's location
+    base_path = os.path.dirname(os.path.abspath(__file__))
     models_path = os.path.join(base_path, "models")
     tools_path = os.path.join(base_path, "tools")
 
@@ -36,7 +37,7 @@ def load_assets():
         assets["SVM"] = joblib.load(os.path.join(models_path, "svc_model.pkl"))
         assets["XGBoost"] = joblib.load(os.path.join(models_path, "best_xgb_model.pkl"))
 
-        # --- THIS IS THE CORRECTED PART FOR THE LLM ---
+        # Load LLM model and tokenizer from the saved directory
         llm_model_path = os.path.join(models_path, "distilbert_model0")
         if not os.path.isdir(llm_model_path):
             st.error(f"DistilBERT model directory not found. Expected at: {llm_model_path}")
@@ -45,7 +46,6 @@ def load_assets():
         # BYPASSING AUTOMODEL: We are now explicitly telling transformers to use the DistilBert class.
         assets["DistilBERT LLM"] = DistilBertForSequenceClassification.from_pretrained(llm_model_path)
         assets["tokenizer"] = AutoTokenizer.from_pretrained(llm_model_path)
-        # --- END OF CORRECTION ---
 
         # Load scalers and encoders
         assets["scaler_first"] = joblib.load(os.path.join(tools_path, "scaler_first.pkl"))
@@ -62,7 +62,6 @@ def load_assets():
         st.error(f"An unexpected error occurred while loading assets: {e}")
         return None
 
-# --- (The rest of the script is the same as the complete version I provided before) ---
 # --- Preprocessing & Prediction Functions ---
 
 def preprocess_for_ml(df, assets):
@@ -71,17 +70,20 @@ def preprocess_for_ml(df, assets):
     
     df_processed['TotalCharges'] = pd.to_numeric(df_processed['TotalCharges'], errors='coerce')
     if df_processed['TotalCharges'].isnull().any():
-        median_charge = df_processed['TotalCharges'].median()
+        median_charge = df_processed['TotalCharges'].median() # Simple fallback
         df_processed['TotalCharges'].fillna(median_charge, inplace=True)
 
+    # Map binary features
     for col in ['Partner', 'Dependents', 'PhoneService', 'PaperlessBilling']:
         df_processed[col] = df_processed[col].map({'Yes': 1, 'No': 0})
 
+    # Consolidate and map service columns
     for col in ['OnlineSecurity', 'OnlineBackup', 'DeviceProtection', 'TechSupport', 'StreamingTV', 'StreamingMovies']:
         df_processed[col] = df_processed[col].replace('No internet service', 'No').map({'Yes': 1, 'No': 0})
     
     df_processed['MultipleLines'] = df_processed['MultipleLines'].replace('No phone service', 'No').map({'Yes': 1, 'No': 0})
     
+    # Apply label encoders
     try:
         df_processed['gender'] = assets['le_gender'].transform(df_processed['gender'])
         df_processed['Contract'] = assets['le_Contract'].transform(df_processed['Contract'])
@@ -91,6 +93,7 @@ def preprocess_for_ml(df, assets):
         st.error(f"Label Encoding Error: {e}. Check if all categorical values in your input are present in the training data.")
         return None
         
+    # Scale numerical columns
     numerical_cols = ['tenure', 'MonthlyCharges', 'TotalCharges']
     df_processed[numerical_cols] = assets['scaler_first'].transform(df_processed[numerical_cols])
 
@@ -139,18 +142,32 @@ def predict_llm(texts, resources):
 
 
 # --- Explainability Functions ---
-def display_shap_explanation(model, preprocessed_data, model_name):
+def display_shap_explanation(model, processed_data, model_name):
+    """Generates and displays SHAP force plot for a single prediction."""
     st.subheader(f"Explainability for {model_name} (SHAP)")
     with st.spinner("Generating explanation..."):
         try:
-            explainer = shap.Explainer(model, preprocessed_data)
-            shap_values = explainer(preprocessed_data)
-            
+            if model_name == "XGBoost":
+                explainer = shap.TreeExplainer(model)
+                shap_values = explainer.shap_values(processed_data)
+                expected_value = explainer.expected_value
+            else: 
+                explainer = shap.LinearExplainer(model, processed_data)
+                shap_values = explainer.shap_values(processed_data)
+                expected_value = explainer.expected_value[0] # LinearExplainer returns a list
+
             st.write("This plot shows which features pushed the prediction higher (in red) or lower (in blue) than the base value.")
             
             # Use st.pyplot for the force plot
             fig, ax = plt.subplots()
-            shap.plots.force(shap_values[0], matplotlib=True, show=False)
+            shap.force_plot(
+                expected_value,
+                shap_values[0,:],
+                processed_data.iloc[0,:],
+                matplotlib=True,
+                show=False,
+                figsize=(15, 5) # Adjust size for better readability
+            )
             st.pyplot(fig, bbox_inches='tight')
             plt.close(fig)
 
@@ -223,7 +240,7 @@ if assets:
             if prediction == 1:
                 st.error(f"**Prediction: Churn** (Confidence: {churn_prob:.2%})")
             else:
-                st.success(f"**Prediction: No Churn** (Confidence: {1 - churn_prob:.2%})")
+                st.success(f"**Prediction: No Churn** (Confidence: {1-churn_prob:.2%})")
 
             if model_choice != "DistilBERT LLM":
                 display_shap_explanation(assets[model_choice], preprocess_for_ml(input_df.copy(), assets), model_choice)
@@ -232,7 +249,7 @@ if assets:
 
     elif input_method == "CSV File Upload":
         st.header("📄 Batch Prediction via CSV Upload")
-        uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
+        uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
 
         if uploaded_file is not None:
             df_batch = pd.read_csv(uploaded_file)
@@ -240,7 +257,7 @@ if assets:
             st.dataframe(df_batch.head())
 
             if st.button(f"Run Batch Prediction with {model_choice}"):
-                with st.spinner("Processing and predicting..."):
+                with st.spinner(f"Processing and predicting..."):
                     if model_choice == "DistilBERT LLM":
                         text_inputs = [convert_to_text(pd.DataFrame([row])) for _, row in df_batch.iterrows()]
                         probs_batch = predict_llm(text_inputs, assets)
@@ -258,9 +275,15 @@ if assets:
                 
                 st.subheader("Batch Prediction Results")
                 st.dataframe(results_df)
-                
+
+                # Convert dataframe to CSV for download
                 output = io.StringIO()
                 results_df.to_csv(output, index=False)
                 csv_output = output.getvalue()
                 
-                st.download_button("Download Results", csv_output, "churn_predictions.csv", "text/csv")
+                st.download_button(
+                    label="Download Results as CSV",
+                    data=csv_output,
+                    file_name=f'churn_predictions_{model_choice.replace(" ", "_")}.csv',
+                    mime='text/csv',
+                )
