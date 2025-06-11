@@ -313,7 +313,7 @@ if input_method == "Manual Input (Single Customer)":
 
             # Display SHAP plot for traditional models
             if model_choice != "DistilBERT LLM":
-                get_shap_plot(model, model'scaler', pd.DataFrame(scaled_data, columns=preprocessed_data.columns), preprocessed_data.columns)
+                get_shap_plot(model, model_choice, pd.DataFrame(scaled_data, columns=preprocessed_data.columns), preprocessed_data.columns)
 
 else:  # CSV Upload
     st.header("Upload Customer Data (CSV)")
