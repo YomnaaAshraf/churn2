@@ -6,7 +6,15 @@ import torch
 import shap
 import matplotlib.pyplot as plt
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
+import streamlit as st
+import pandas as pd
+import numpy as np
+import joblib
+import torch
+import shap
+import matplotlib.pyplot as plt
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import os
 # --- Page Configuration ---
 st.set_page_config(
     page_title="Telco Churn Predictor",
@@ -15,28 +23,39 @@ st.set_page_config(
 )
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
-
+script_dir = os.path.dirname(os.path.abspath(__file__))
 # --- Caching Models and Tools ---
 @st.cache_resource
 def load_models_and_tools():
     """Load all models, tokenizers, scalers, and encoders once."""
+        # --- Build absolute paths to your asset files ---
+    # This combines your script's location with the relative folder/file names
+    lr_path = os.path.join(script_dir, "models", "logistic_regression_model.pkl")
+    svc_path = os.path.join(script_dir, "models", "svc_model.pkl")
+    xgb_path = os.path.join(script_dir, "models", "best_xgb_model.pkl")
+    llm_path = os.path.join(script_dir, "models", "distilbert_model0") # Path to the FOLDER
+    scaler_path = os.path.join(script_dir, "tools", "scaler_first.pkl")
+    le_gender_path = os.path.join(script_dir, "tools", "le_gender.pkl")
+    le_Contract_path = os.path.join(script_dir, "tools", "le_Contract.pkl")
+    le_PaymentMethod_path = os.path.join(script_dir, "tools", "le_PaymentMethod.pkl")
+    le_InternetService_path = os.path.join(script_dir, "tools", "le_InternetService.pkl")
     # Traditional ML Models
-    lr_model = joblib.load("./models/logistic_regression_model.pkl")
-    svc_model = joblib.load("./models/svc_model.pkl")
-    xgb_model = joblib.load("./models/best_xgb_model.pkl")
+    lr_model = joblib.load("lr_path")
+    svc_model = joblib.load("svc_path")
+    xgb_model = joblib.load("xgb_path")
 
     # LLM Model
     llm_tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
     llm_model = AutoModelForSequenceClassification.from_pretrained("./models/distilbert_model0", num_labels=2)
     
     # Scalers
-    scaler_first = joblib.load("./tools/scaler_first.pkl")
+    scaler_first = joblib.load(scaler_path)
     
     # Label Encoders
-    le_gender = joblib.load("./tools/le_gender.pkl")
-    le_Contract = joblib.load("./tools/le_Contract.pkl")
-    le_PaymentMethod = joblib.load("./tools/le_PaymentMethod.pkl")
-    le_InternetService = joblib.load("./tools/le_InternetService.pkl")
+    le_gender = joblib.load(le_gender_path)
+    le_Contract = joblib.load(le_Contract_path)
+    le_PaymentMethod = joblib.load(le_PaymentMethod_path)
+    le_InternetService = joblib.load(le_InternetService_path)
     
     return {
         "Logistic Regression": lr_model,
