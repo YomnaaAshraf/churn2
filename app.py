@@ -8,9 +8,8 @@ import torch
 import shap
 import matplotlib.pyplot as plt
 import seaborn as sns
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import os
-
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, DistilBertForSequenceClassification
 # --- Page Configuration ---
 st.set_page_config(
     page_title="Telco Customer Churn Predictor",
@@ -25,7 +24,6 @@ st.set_option('deprecation.showPyplotGlobalUse', False)
 @st.cache_resource
 def load_assets():
     """Load all machine learning models and associated tools."""
-    # Build relative paths from the script's location
     base_path = os.path.dirname(os.path.abspath(__file__))
     models_path = os.path.join(base_path, "models")
     tools_path = os.path.join(base_path, "tools")
@@ -37,13 +35,16 @@ def load_assets():
         assets["SVM"] = joblib.load(os.path.join(models_path, "svc_model.pkl"))
         assets["XGBoost"] = joblib.load(os.path.join(models_path, "best_xgb_model.pkl"))
 
-        # Load LLM model and tokenizer from the saved directory
+        # --- THIS IS THE CORRECTED PART FOR THE LLM ---
         llm_model_path = os.path.join(models_path, "distilbert_model0")
         if not os.path.isdir(llm_model_path):
             st.error(f"DistilBERT model directory not found. Expected at: {llm_model_path}")
             return None
-        assets["DistilBERT LLM"] = AutoModelForSequenceClassification.from_pretrained(llm_model_path)
+        
+        # Explicitly load the model using its specific class, not the AutoModel class
+        assets["DistilBERT LLM"] = DistilBertForSequenceClassification.from_pretrained(llm_model_path)
         assets["tokenizer"] = AutoTokenizer.from_pretrained(llm_model_path)
+        # --- END OF CORRECTION ---
 
         # Load scalers and encoders
         assets["scaler_first"] = joblib.load(os.path.join(tools_path, "scaler_first.pkl"))
